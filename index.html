@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' https://accounts.google.com/gsi/style; frame-src https://accounts.google.com/gsi/; connect-src 'self' https://accounts.google.com/gsi/ https://script.google.com https://script.googleusercontent.com https://www.googleapis.com; img-src 'self' data: https://lh3.googleusercontent.com; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#1d2b64">
+  <title>BasketMagic · Subir material</title>
+  <link rel="icon" href="img/icono.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script src="js/config.js"></script>
+  <script src="js/vendor/spark-md5.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div id="aviso-simulador" class="aviso-simulador" hidden>MODO SIMULADOR · No está conectado a Google ni a Drive</div>
+  <header class="cabecera">
+    <div class="marca"><img src="img/icono.svg" alt="" width="32" height="32"><span>BasketMagic</span></div>
+    <div id="usuario" class="usuario" hidden>
+      <span id="usuario-correo"></span>
+      <button id="boton-salir" class="boton secundario pequeno" type="button">Salir</button>
+    </div>
+  </header>
+
+  <main class="contenido">
+    <section id="pantalla-error-config" class="tarjeta" hidden>
+      <h1>Página sin configurar</h1>
+      <p>Falta la configuración del servicio de subidas. Avisa a la administradora.</p>
+    </section>
+
+    <section id="pantalla-acceso" class="tarjeta centrada" hidden>
+      <h1>Sube fotos y vídeos de tu equipo</h1>
+      <p>Inicia sesión con la cuenta de Google que te ha autorizado la administradora.</p>
+      <div id="boton-google"></div>
+      <form id="acceso-simulado" class="acceso-simulado" hidden>
+        <label>Correo (simulado) <input id="correo-simulado" type="email" required autocomplete="off"></label>
+        <button class="boton" type="submit">Entrar (simulado)</button>
+      </form>
+      <p class="nota">BasketMagic solo recibe tu nombre y tu correo. No accede a tu Google Drive.</p>
+    </section>
+
+    <section id="pantalla-equipos" hidden>
+      <h1>Mis equipos</h1>
+      <div id="lista-equipos" class="rejilla-equipos"></div>
+      <p id="sin-equipos" class="tarjeta" hidden>Todavía no tienes equipos asignados.</p>
+    </section>
+
+    <section id="pantalla-subir" hidden>
+      <button id="volver" class="boton secundario pequeno" type="button">← Mis equipos</button>
+      <h1 id="titulo-equipo"></h1>
+      <p class="nota">1. Elige qué vas a subir · 2. Elige los archivos</p>
+      <div id="lista-categorias" class="rejilla-categorias"></div>
+      <label id="selector-archivos" class="selector" hidden>
+        <input id="entrada-archivos" type="file" multiple>
+        <span id="texto-selector">Elegir archivos</span>
+      </label>
+      <p class="nota">Recomendación: graba los vídeos en 1080p. Mantén esta página abierta hasta que todo esté «Verificado».</p>
+    </section>
+
+    <section id="panel-pendientes" class="tarjeta aviso" hidden></section>
+
+    <section id="panel-subidas" hidden>
+      <h2>Subidas</h2>
+      <ul id="lista-subidas" class="lista-subidas"></ul>
+    </section>
+  </main>
+  <div id="mensaje" class="mensaje" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

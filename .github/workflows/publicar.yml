@@ -1,0 +1,40 @@
+name: Publicar en GitHub Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generar js/config.js desde las variables del repositorio
+        env:
+          CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID_WEB }}
+          URL_SERVICIO: ${{ vars.APPS_SCRIPT_URL }}
+        run: |
+          if [ -z "$CLIENT_ID" ] || [ -z "$URL_SERVICIO" ]; then
+            echo "::error::Faltan las variables GOOGLE_CLIENT_ID_WEB o APPS_SCRIPT_URL (Settings → Secrets and variables → Actions → Variables)."
+            exit 1
+          fi
+          case "$URL_SERVICIO" in https://script.google.com/macros/s/*/exec) ;; *) echo "::error::APPS_SCRIPT_URL no tiene el formato esperado."; exit 1;; esac
+          python3 -c 'import json,os; print("window.BASKETMAGIC_CONFIG = " + json.dumps({"clientId": os.environ["CLIENT_ID"], "urlServicio": os.environ["URL_SERVICIO"], "modoSimulador": False}) + ";")' > js/config.js
+          mkdir -p _sitio
+          cp -r index.html prueba.html css js img _sitio/
+          rm -f _sitio/js/config.ejemplo.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _sitio
+      - id: despliegue
+        uses: actions/deploy-pages@v4
