@@ -11,11 +11,8 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  publicar:
+  construir:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.despliegue.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -38,5 +35,21 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _sitio
+
+  # El despliegue va en otro trabajo: GitHub tarda unos segundos en hacer visible el
+  # artefacto recién subido (https://github.com/actions/deploy-pages/issues/451).
+  publicar:
+    needs: construir
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url || steps.reintento.outputs.page_url }}
+    steps:
       - id: despliegue
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+      - if: steps.despliegue.outcome == 'failure'
+        run: sleep 30
+      - id: reintento
+        if: steps.despliegue.outcome == 'failure'
         uses: actions/deploy-pages@v5
