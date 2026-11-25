@@ -7,12 +7,13 @@ const DIAS_VALIDEZ_SESION = 6;
 const SIMULTANEAS = 2;
 
 const CATEGORIAS = {
-  fotos_individuales: { nombre: 'Fotos individuales', acepta: 'image/*', icono: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>' },
-  foto_equipo: { nombre: 'Foto del equipo', acepta: 'image/*', icono: '<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><circle cx="12" cy="7" r="3"/><path d="M2 20c0-3 2-5 5-5M22 20c0-3-2-5-5-5M7 21c0-4 2-6 5-6s5 2 5 6"/>' },
-  foto_generacion: { nombre: 'Foto de la generación', acepta: 'image/*', icono: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>' },
-  videos_entrenando: { nombre: 'Vídeos entrenando', acepta: 'video/*', icono: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>' },
-  felicitacion: { nombre: 'Felicitación', acepta: 'video/*', icono: '<path d="M12 2l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 9l6-1z"/>' },
-  otros: { nombre: 'Otros', acepta: 'image/*,video/*', icono: '<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>' },
+  foto_dni: { nombre: 'Fotos tipo DNI', acepta: 'image/*', icono: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 17c.5-2 2-3 3.5-3s3 1 3.5 3M15 9h3M15 13h3"/>' },
+  foto_cuerpo: { nombre: 'Fotos cuerpo entero', acepta: 'image/*', icono: '<circle cx="12" cy="4" r="2"/><path d="M12 6v8M8 9h8M12 14l-3 7M12 14l3 7"/>' },
+  foto_grupal_equipo: { nombre: 'Foto grupal del equipo', acepta: 'image/*', icono: '<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><circle cx="12" cy="7" r="3"/><path d="M2 20c0-3 2-5 5-5M22 20c0-3-2-5-5-5M7 21c0-4 2-6 5-6s5 2 5 6"/>' },
+  foto_grupal_generacion: { nombre: 'Foto grupal de la generación', acepta: 'image/*', icono: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>' },
+  felicitacion: { nombre: 'Felicitación', acepta: 'image/*,video/*', icono: '<path d="M12 2l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 9l6-1z"/>' },
+  video_entrenando: { nombre: 'Vídeos entrenando', acepta: 'video/*', icono: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>' },
+  cancion: { nombre: 'Canción', acepta: 'audio/*,video/*', icono: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>' },
   prueba_tecnica: { nombre: 'Prueba técnica', acepta: '', icono: '<path d="M9 2h6M10 2v6l-6 11a2 2 0 002 3h12a2 2 0 002-3L14 8V2"/>' }
 };
 
@@ -250,6 +251,7 @@ async function subir(tarea) {
       tamanoTrozo: previo.trozo,
       estado: previo,
       senal: tarea.control.signal,
+      consultarRecibidos: () => llamar('estadoSubida', { idSubida: previo.idSubida }),
       alProgreso: (hecho, total) => {
         const seg = (Date.now() - inicio) / 1000;
         ponerEstado(tarea, `Subiendo ${Math.floor((hecho / total) * 100)} % · ${formatoBytes(hecho)} de ${formatoBytes(total)}${seg > 2 ? ` · ${formatoBytes(hecho / seg)}/s` : ''}`, (hecho / total) * 100);

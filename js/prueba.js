@@ -40,6 +40,7 @@ async function subirArchivo(archivo, { abortarEn = null } = {}) {
   let estado = null;
   let sub = new SubidaReanudable({
     archivo, urlSubida: s.urlSubida, tamanoTrozo: s.tamanoTrozo, senal: control.signal,
+    consultarRecibidos: () => llamar('estadoSubida', { idSubida: s.idSubida }),
     alGuardarEstado: (e) => { estado = e; },
     alProgreso: (hecho, total) => { if (abortarEn && hecho / total >= abortarEn && !control.signal.aborted) control.abort(); }
   });
@@ -51,7 +52,7 @@ async function subirArchivo(archivo, { abortarEn = null } = {}) {
     if (err.codigo !== 'cancelada') throw err;
     interrumpida = true;
     control = new AbortController();
-    sub = new SubidaReanudable({ archivo, urlSubida: s.urlSubida, tamanoTrozo: s.tamanoTrozo, senal: control.signal, estado });
+    sub = new SubidaReanudable({ archivo, urlSubida: s.urlSubida, tamanoTrozo: s.tamanoTrozo, senal: control.signal, estado, consultarRecibidos: () => llamar('estadoSubida', { idSubida: s.idSubida }) });
     r = await sub.ejecutar({ reanudar: true });
   }
   let cerrada = null;
@@ -103,16 +104,22 @@ async function ejecutar() {
   await paso('Subida pequeña verificada (2 MB)', async () => {
     const r = await subirArchivo(generarArchivo(2, `prueba_${marca}_pequena.bin`));
     urlCompletada = r.url;
-    anotar('Subida pequeña verificada (2 MB)', r.verificado ? 'ok' : 'error', `MD5 ${r.verificado ? 'coincide' : 'NO coincide'} · registro de sesión cerrado: ${r.cerrada} · sesión ${r.msSesion} ms · total ${r.ms} ms · cabecera Range visible: ${r.diag.rangeVisible}`);
+    anotar('Subida pequeña verificada (2 MB)', r.verificado ? 'ok' : 'error', `MD5 ${r.verificado ? 'coincide' : 'NO coincide'} · registro de sesión cerrado: ${r.cerrada} · sesión ${r.msSesion} ms · total ${r.ms} ms`);
   });
 
   // 6. Seguridad de la sesión: no admite un tamaño distinto del declarado
   await paso('Sesión de subida no admite otro tamaño', async () => {
     const s = await llamar('iniciarSubida', { equipoId: $('equipo').value, categoria: 'prueba_tecnica', nombre: `prueba_${marca}_manipulada.bin`, tamano: 1024, tipo: 'application/octet-stream' });
     const datos = new Uint8Array(2048);
-    let codigo = 'error de red';
-    try { codigo = (await fetch(s.urlSubida, { method: 'PUT', headers: { 'Content-Range': 'bytes 0-2047/2048' }, body: datos })).status; } catch { /* rechazo por red */ }
-    anotar('Sesión de subida no admite otro tamaño', codigo === 200 || codigo === 201 ? 'error' : 'ok', `Respuesta de Drive: ${codigo}`);
+    let codigo = null;
+    try { codigo = (await fetch(s.urlSubida, { method: 'PUT', headers: { 'Content-Range': 'bytes 0-2047/2048' }, body: datos })).status; } catch { /* Drive responde 4xx sin cabeceras CORS: el navegador solo ve «error de red» */ }
+    // Comprobación independiente desde Apps Script: ¿Drive guardó algo de esa sesión?
+    let estado = null;
+    try { estado = await llamar('estadoSubida', { idSubida: s.idSubida }); } catch (err) { estado = { error: err.codigo || 'sesion_caducada' }; }
+    const aceptada = codigo === 200 || codigo === 201 || estado?.terminado === true || estado?.recibidos > 0;
+    const vista = codigo === null ? 'bloqueada (sin cabeceras CORS)' : `HTTP ${codigo}`;
+    const servidor = estado?.error ? `sesión anulada por Drive (${estado.error})` : `terminada: ${estado?.terminado} · bytes guardados: ${estado?.recibidos}`;
+    anotar('Sesión de subida no admite otro tamaño', aceptada ? 'error' : estado ? 'ok' : 'aviso', `Navegador: ${vista} · Apps Script: ${servidor}`);
   });
 
   // 7. Sesión terminada no reutilizable
@@ -134,7 +141,7 @@ async function ejecutar() {
   await paso('Interrupción y reanudación', async () => {
     const archivo = generarArchivo(40, `prueba_${marca}_reanudada.bin`);
     const r = await subirArchivo(archivo, { abortarEn: 0.4 });
-    anotar('Interrupción al 40 % y reanudación', r.interrumpida && r.verificado ? 'ok' : 'error', `Interrumpida: ${r.interrumpida} · MD5 ${r.verificado ? 'coincide' : 'NO coincide'} · consultas de estado ${r.diag.consultasEstado} · bytes reenviados tras reanudar ${(r.diag.bytesEnviados / 1024 / 1024).toFixed(1)} MB de 40 MB`);
+    anotar('Interrupción al 40 % y reanudación', r.interrumpida && r.verificado ? 'ok' : 'error', `Interrumpida: ${r.interrumpida} · MD5 ${r.verificado ? 'coincide' : 'NO coincide'} · consultas de estado ${r.diag.consultasEstado} · bytes reenviados tras reanudar ${(r.diag.bytesEnviados / 1024 / 1024).toFixed(1)} MB de 40 MB · cabecera Range ${r.diag.rangeVisible === null ? 'no consultada' : r.diag.rangeVisible ? 'visible' : 'oculta por CORS'} · posición pedida a Apps Script: ${r.diag.recibidosServicio || 0} vez/veces`);
   });
 
   // 10. Simultáneas

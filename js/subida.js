@@ -25,13 +25,15 @@ function finDesdeRange(valor) {
  * estado = { offset, md5Estado, md5Offset } permite continuar tras recargar la página.
  */
 export class SubidaReanudable {
-  constructor({ archivo, urlSubida, tamanoTrozo = 8 * 1024 * 1024, estado = null, alProgreso = () => {}, alGuardarEstado = () => {}, senal = null }) {
+  constructor({ archivo, urlSubida, tamanoTrozo = 8 * 1024 * 1024, estado = null, alProgreso = () => {}, alGuardarEstado = () => {}, senal = null, consultarRecibidos = null }) {
     this.archivo = archivo;
     this.url = urlSubida;
     this.trozo = Math.max(256 * 1024, Math.floor(tamanoTrozo / (256 * 1024)) * 256 * 1024);
     this.alProgreso = alProgreso;
     this.alGuardarEstado = alGuardarEstado;
     this.senal = senal;
+    // Drive no expone la cabecera Range al navegador (CORS); Apps Script la lee por nosotros.
+    this.consultarRecibidos = consultarRecibidos;
     this.md5 = new SparkMD5.ArrayBuffer();
     this.md5Offset = 0;
     if (estado?.md5Estado) {
@@ -123,6 +125,14 @@ export class SubidaReanudable {
     if (r.status === 308) {
       const range = r.headers.get('Range');
       this.diagnostico.rangeVisible = range !== null;
+      if (range === null && this.consultarRecibidos) {
+        try {
+          const e = await this.consultarRecibidos();
+          this.diagnostico.recibidosServicio = (this.diagnostico.recibidosServicio || 0) + 1;
+          if (e.terminado) return this.consultarEstado();
+          return { terminado: false, offset: e.recibidos };
+        } catch { /* sin servicio: se reenvía desde el principio, el MD5 lo verifica */ }
+      }
       return { terminado: false, offset: finDesdeRange(range) };
     }
     if ([404, 410, 499].includes(r.status)) throw new ErrorSubida('sesion_caducada', 'La sesión de subida ya no es válida (ha caducado o se ha cancelado). Vuelve a elegir el archivo.');
