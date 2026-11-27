@@ -89,7 +89,7 @@ async function ejecutar() {
 
   // 4. Tipo no permitido en categoría
   try {
-    await llamar('iniciarSubida', { equipoId: $('equipo').value, categoria: 'fotos_individuales', nombre: 'x.exe', tamano: 10, tipo: 'application/x-msdownload' });
+    await llamar('iniciarSubida', { equipoId: $('equipo').value, categoria: 'foto_entero', jugador: 'Prueba', nombre: 'x.exe', tamano: 10, tipo: 'application/x-msdownload' });
     anotar('Bloqueo de tipo de archivo no válido', 'error', 'Se aceptó un ejecutable');
   } catch (err) {
     anotar('Bloqueo de tipo de archivo no válido', ['tipo_no_valido', 'categoria_no_valida'].includes(err.codigo) ? 'ok' : 'error', err.codigo);

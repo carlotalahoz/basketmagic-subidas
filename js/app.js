@@ -6,16 +6,20 @@ const CLAVE_PENDIENTES = 'bm_subidas_pendientes';
 const DIAS_VALIDEZ_SESION = 6;
 const SIMULTANEAS = 2;
 
+// Estructura de cada equipo en Drive: FOTOS INDIVIDUALES - ENTERO/, FOTOS INDIVIDUALES - MEDIO/, VIDEOS ENTRENANDO/,
+// FOTO EQUIPO, FOTO GENERACION, FELICITACION NAVIDEÑA y CANCION. El servicio decide el nombre final y nunca sobrescribe.
 const CATEGORIAS = {
-  foto_dni: { nombre: 'Fotos tipo DNI', acepta: 'image/*', icono: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5.5 17c.5-2 2-3 3.5-3s3 1 3.5 3M15 9h3M15 13h3"/>' },
-  foto_cuerpo: { nombre: 'Fotos cuerpo entero', acepta: 'image/*', icono: '<circle cx="12" cy="4" r="2"/><path d="M12 6v8M8 9h8M12 14l-3 7M12 14l3 7"/>' },
-  foto_grupal_equipo: { nombre: 'Foto grupal del equipo', acepta: 'image/*', icono: '<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><circle cx="12" cy="7" r="3"/><path d="M2 20c0-3 2-5 5-5M22 20c0-3-2-5-5-5M7 21c0-4 2-6 5-6s5 2 5 6"/>' },
-  foto_grupal_generacion: { nombre: 'Foto grupal de la generación', acepta: 'image/*', icono: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>' },
-  felicitacion: { nombre: 'Felicitación', acepta: 'image/*,video/*', icono: '<path d="M12 2l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 9l6-1z"/>' },
-  video_entrenando: { nombre: 'Vídeos entrenando', acepta: 'video/*', icono: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>' },
-  cancion: { nombre: 'Canción', acepta: 'audio/*,video/*', icono: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>' },
-  prueba_tecnica: { nombre: 'Prueba técnica', acepta: '', icono: '<path d="M9 2h6M10 2v6l-6 11a2 2 0 002 3h12a2 2 0 002-3L14 8V2"/>' }
+  foto_entero: { nombre: 'Fotos individuales - entero', acepta: 'image/*', multiple: true, jugador: true, icono: '<circle cx="12" cy="4" r="2"/><path d="M12 6v8M8 9h8M12 14l-3 7M12 14l3 7"/>' },
+  foto_medio: { nombre: 'Fotos individuales - medio', acepta: 'image/*', multiple: true, jugador: true, icono: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="10" r="3"/><path d="M6 20c1-3 3.5-5 6-5s5 2 6 5"/>' },
+  video_entrenando: { nombre: 'Vídeos entrenando', acepta: 'video/*', multiple: true, icono: '<rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/>' },
+  foto_equipo: { nombre: 'Foto equipo', acepta: 'image/*', icono: '<circle cx="7" cy="9" r="3"/><circle cx="17" cy="9" r="3"/><circle cx="12" cy="7" r="3"/><path d="M2 20c0-3 2-5 5-5M22 20c0-3-2-5-5-5M7 21c0-4 2-6 5-6s5 2 5 6"/>' },
+  foto_generacion: { nombre: 'Foto generación', acepta: 'image/*', icono: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>' },
+  felicitacion: { nombre: 'Felicitación navideña', acepta: 'video/*', icono: '<path d="M12 2l3 6 6 1-4.5 4 1 6-5.5-3-5.5 3 1-6L3 9l6-1z"/>' },
+  cancion: { nombre: 'Canción', acepta: 'audio/*', icono: '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>' },
+  prueba_tecnica: { nombre: 'Prueba técnica', acepta: '', multiple: true, icono: '<path d="M9 2h6M10 2v6l-6 11a2 2 0 002 3h12a2 2 0 002-3L14 8V2"/>' }
 };
+// Nombres que ponen las cámaras: no sirven como nombre del jugador.
+const NOMBRE_CAMARA = /^(img|dsc|dscn|pxl|vid|mvimg|photo|foto|image|screenshot|captura|whatsapp|signal|\d)[\s_-]?/i;
 
 const estado = { usuario: null, equipo: null, categoria: null, cola: [], activas: 0, bloqueoPantalla: null };
 
@@ -138,6 +142,8 @@ function elegirCategoria(id) {
   for (const b of document.querySelectorAll('.categoria')) b.setAttribute('aria-pressed', String(b.dataset.categoria === id));
   const entrada = $('entrada-archivos');
   entrada.accept = CATEGORIAS[id].acepta;
+  entrada.multiple = Boolean(CATEGORIAS[id].multiple);
+  $('preparar-jugadores').hidden = true;
   $('texto-selector').textContent = `Elegir archivos · ${CATEGORIAS[id].nombre}`;
   $('selector-archivos').hidden = false;
 }
@@ -145,14 +151,57 @@ function elegirCategoria(id) {
 $('volver').addEventListener('click', () => pintarEquipos());
 
 $('entrada-archivos').addEventListener('change', (ev) => {
-  for (const archivo of ev.target.files) encolar(archivo, estado.equipo, estado.categoria);
+  const lista = [...ev.target.files];
   ev.target.value = '';
+  if (CATEGORIAS[estado.categoria]?.jugador) return pedirJugadores(lista);
+  for (const archivo of lista) encolar(archivo, estado.equipo, estado.categoria);
 });
+
+// Fotos individuales: cada foto se guarda con el nombre del jugador (y su extensión original).
+function pedirJugadores(lista) {
+  const panel = $('preparar-jugadores');
+  const equipo = estado.equipo;
+  const categoria = estado.categoria;
+  panel.replaceChildren();
+  const titulo = document.createElement('p');
+  titulo.innerHTML = '<strong>¿De quién es cada foto?</strong> Escribe nombre y apellidos. No se reemplaza ninguna foto existente.';
+  panel.append(titulo);
+  const filas = lista.map((archivo, i) => {
+    const l = document.createElement('label');
+    l.className = 'fila-jugador';
+    const base = archivo.name.replace(/\.[^.]{1,5}$/, '');
+    l.innerHTML = '<span class="nombre"></span><input type="text" autocomplete="off" maxlength="80" required>';
+    l.querySelector('span').textContent = `${i + 1}. ${archivo.name}`;
+    const entrada = l.querySelector('input');
+    entrada.value = NOMBRE_CAMARA.test(base) ? '' : base;
+    entrada.placeholder = 'Nombre y apellidos';
+    panel.append(l);
+    return { archivo, entrada };
+  });
+  const boton = document.createElement('button');
+  boton.type = 'button';
+  boton.className = 'boton';
+  boton.id = 'subir-jugadores';
+  const comprobar = () => {
+    const vacios = filas.filter((f) => !f.entrada.value.trim()).length;
+    boton.disabled = vacios > 0;
+    boton.textContent = vacios ? `Faltan ${vacios} nombre(s)` : `Subir ${filas.length} foto(s)`;
+  };
+  filas.forEach((f) => f.entrada.addEventListener('input', comprobar));
+  comprobar();
+  boton.addEventListener('click', () => {
+    for (const f of filas) encolar(f.archivo, equipo, categoria, { jugador: f.entrada.value.trim() });
+    panel.hidden = true;
+    panel.replaceChildren();
+  });
+  panel.append(boton);
+  panel.hidden = false;
+}
 
 // ---------- Subidas pendientes (reanudación tras cerrar la página) ----------
 const leerPendientes = () => { try { return JSON.parse(localStorage.getItem(CLAVE_PENDIENTES)) || {}; } catch { return {}; } };
 const guardarPendientes = (p) => localStorage.setItem(CLAVE_PENDIENTES, JSON.stringify(p));
-const huella = (archivo, equipoId, categoria) => [estado.usuario.correo, equipoId, categoria, archivo.name, archivo.size, archivo.lastModified].join('|');
+const huella = (archivo, equipoId, categoria, jugador = '') => [estado.usuario.correo, equipoId, categoria, archivo.name, archivo.size, archivo.lastModified, jugador].join('|');
 
 function limpiarPendientesCaducados() {
   const p = leerPendientes();
@@ -176,10 +225,10 @@ function pintarPendientes() {
 }
 
 // ---------- Cola de subidas ----------
-function encolar(archivo, equipo, categoria) {
-  const clave = huella(archivo, equipo.id, categoria);
+function encolar(archivo, equipo, categoria, { jugador = '' } = {}) {
+  const clave = huella(archivo, equipo.id, categoria, jugador);
   if (estado.cola.some((t) => t.clave === clave && !['ok', 'error', 'cancelada'].includes(t.fase))) return avisar(`«${archivo.name}» ya está en la cola.`);
-  const tarea = { clave, archivo, equipo, categoria, fase: 'espera', control: null };
+  const tarea = { clave, archivo, equipo, categoria, jugador, resolver: null, fase: 'espera', control: null };
   tarea.li = crearFila(tarea);
   estado.cola.push(tarea);
   $('panel-subidas').hidden = false;
@@ -190,7 +239,7 @@ function crearFila(tarea) {
   const li = document.createElement('li');
   li.className = 'subida';
   li.innerHTML = '<div class="fila"><span class="nombre"></span><button class="boton secundario pequeno accion" type="button">Cancelar</button></div><div class="barra"><span></span></div><div class="estado">En espera</div>';
-  li.querySelector('.nombre').textContent = `${tarea.archivo.name} · ${formatoBytes(tarea.archivo.size)} · ${tarea.equipo.nombre}`;
+  li.querySelector('.nombre').textContent = `${tarea.jugador ? tarea.jugador + ' · ' : ''}${tarea.archivo.name} · ${formatoBytes(tarea.archivo.size)} · ${tarea.equipo.nombre}`;
   li.querySelector('.accion').addEventListener('click', () => {
     if (tarea.fase === 'error' || tarea.fase === 'cancelada') {
       tarea.fase = 'espera';
@@ -239,7 +288,7 @@ async function subir(tarea) {
     if (!previo) {
       if (!sesionActiva()) throw new ErrorSubida('identidad_no_valida', 'Tu sesión ha caducado. Sal y vuelve a entrar.');
       ponerEstado(tarea, 'Preparando…', 0);
-      const s = await llamar('iniciarSubida', { equipoId: tarea.equipo.id, categoria: tarea.categoria, nombre: tarea.archivo.name, tamano: tarea.archivo.size, tipo: tipoDe(tarea.archivo) });
+      const s = await llamar('iniciarSubida', { equipoId: tarea.equipo.id, categoria: tarea.categoria, nombre: tarea.archivo.name, tamano: tarea.archivo.size, tipo: tipoDe(tarea.archivo), jugador: tarea.jugador || undefined, resolver: tarea.resolver || undefined });
       previo = { idSubida: s.idSubida, url: s.urlSubida, trozo: s.tamanoTrozo, offset: 0, md5Estado: null, md5Offset: 0, creado: Date.now(), nombre: tarea.archivo.name, tamano: tarea.archivo.size, equipoNombre: tarea.equipo.nombre };
       guardarPendientes({ ...leerPendientes(), [tarea.clave]: previo });
     } else {
@@ -274,6 +323,7 @@ async function subir(tarea) {
     tarea.li.querySelector('.accion').hidden = true;
     pintarPendientes();
   } catch (err) {
+    if (err.codigo === 'archivo_existente') return mostrarConflicto(tarea, err.message);
     if (err instanceof ErrorSubida && err.codigo === 'sesion_caducada') {
       const p = leerPendientes();
       delete p[tarea.clave];
@@ -285,6 +335,33 @@ async function subir(tarea) {
     tarea.li.querySelector('.accion').textContent = 'Reintentar';
     pintarPendientes();
   }
+}
+
+// Ya existe un archivo con ese nombre en Drive: nunca se reemplaza. La persona decide.
+function mostrarConflicto(tarea, mensaje) {
+  tarea.fase = 'conflicto';
+  tarea.li.classList.add('conflicto');
+  ponerEstado(tarea, mensaje);
+  tarea.li.querySelector('.accion').hidden = true;
+  const opciones = document.createElement('div');
+  opciones.className = 'opciones-conflicto';
+  opciones.innerHTML = '<button type="button" class="boton pequeno alternativa">Guardar como alternativa</button><button type="button" class="boton secundario pequeno no-subir">No subir</button>';
+  opciones.querySelector('.alternativa').addEventListener('click', () => {
+    opciones.remove();
+    tarea.resolver = 'alternativa';
+    tarea.fase = 'espera';
+    tarea.li.classList.remove('conflicto');
+    tarea.li.querySelector('.accion').hidden = false;
+    ponerEstado(tarea, 'En espera');
+    procesarCola();
+  });
+  opciones.querySelector('.no-subir').addEventListener('click', () => {
+    opciones.remove();
+    tarea.fase = 'cancelada';
+    tarea.li.classList.remove('conflicto');
+    ponerEstado(tarea, 'No se ha subido. El archivo de Drive no ha cambiado.');
+  });
+  tarea.li.append(opciones);
 }
 
 async function mantenerPantalla(activar) {
